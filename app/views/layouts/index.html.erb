@@ -1,0 +1,114 @@
+# <script src="https://www.paypal.com/sdk/js?client-id=<%= ENV['PAYPAL_CLIENT_ID'] %>"></script>
+
+<div>
+%script(src="https://www.paypal.com/sdk/js?client-id=#{ENV['PAYPAL_CLIENT_ID']}")
+  <h1>List of products</h1>
+  <%= form_tag({:controller => "orders", :action => "submit" }, {:id => 'order-details'}) do %>
+    <%= hidden_field_tag 'orders[payment_gateway]', 'stripe', id: 'order-type' %>
+    <div class="form_row">
+      <h4>Charges/Payments</h4>
+      <% @products_purchase.each do |product| %>
+        <div data-charges-and-payments-section="true">
+          <%= radio_button_tag 'orders[product_id]', product.id, @products_purchase.first == product %>
+          <span id="radioButtonName<%= product.id %>"><%= product.name %></span>
+          <span id="radioButtonPrice<%= product.id %>" data-price="<%= product.price_cents %>"><%= humanized_money_with_symbol product.price %></span>
+        </div>
+        <br>
+      <% end %>
+      <h4>Subscriptions</h4>
+      <% @products_subscription.each do |product| %>
+        <div>
+          <%= radio_button_tag 'orders[product_id]', product.id, false %>
+          <span id="radioButtonName<%= product.id %>"><%= product.name %></span>
+          <span id="radioButtonPrice<%= product.id %>" data-price="<%= product.price_cents %>"><%= humanized_money_with_symbol product.price %></span>
+        </div>
+        <br>
+      <% end %>
+    </div>
+    <hr>
+    <h1>Payment Method</h1>
+    <div class="form_row">
+      <div>
+        <%= radio_button_tag 'payment-selection', 'stripe', true, onclick: "changeTab();" %>
+        <span>Stripe</span>
+      </div>
+      <br>
+      <div>
+        <%= radio_button_tag 'payment-selection', 'paypal', false, onclick: "changeTab();" %>
+        <span>Paypal</span>
+      </div>
+    </div>
+    <br>
+    <br>
+    <div id="tab-stripe" class="paymentSelectionTab active">
+      <div id="card-element"></div>
+      <div id="card-errors" role="alert"></div>
+      <br>
+      <br>
+      <%= submit_tag "Buy it!", id: "submit-stripe" %>
+    </div>
+    <div id="tab-paypal" class="paymentSelectionTab">
+      <div id="submit-paypal"></div>
+    </div>
+    <br>
+    <br>
+    <hr>
+  <% end %>
+</div>
+
+<script>
+  function changeTab() {
+    var newActiveTabID = $('input[name="payment-selection"]:checked').val();
+    $('.paymentSelectionTab').removeClass('active');
+    $('#tab-' + newActiveTabID).addClass('active');
+  }
+
+  (function setupPaypal() {
+    function isPayment() {
+      return $('[data-charges-and-payments-section] input[name="orders[product_id]"]:checked').length;
+    }
+
+    function submitOrderPaypal(chargeID) {
+      var $form = $("#order-details");
+      $form.append($('<input type="hidden" name="orders[charge_id]"/>').val(chargeID));
+      $('#order-type').val('paypal');
+      $form.submit();
+    }
+
+    paypal.Buttons({
+      env: "<%= ENV['PAYPAL_ENV'] %>",
+      createOrder: function() {
+        if (isPayment()) {
+         # Make an API call to your server to create the order
+         # and return the order ID.
+         # You can use AJAX or fetch to send the request.
+         # Example:
+          return fetch("/create-paypal-order", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              product_id: $('[name="orders[product_id]"]:checked').val(),
+              payment_gateway: "paypal",
+            }),
+          })
+            .then(function(response) {
+              return response.json();
+            })
+            .then(function(data) {
+              return data.orderID;# Return the order ID from the response
+            });
+        }
+      },
+      onApprove: function(data) {
+       # Capture the PayPal order ID from the data object
+        var orderID = data.orderID;
+        if (orderID) {
+          submitOrderPaypal(orderID);
+        }
+      }
+    }).render("#submit-paypal");
+  })();
+</script>
+
