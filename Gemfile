@@ -32,6 +32,8 @@ gem "haml"
 gem "jquery-rails"
 gem "money-rails"
 
+gem "faker"
+
 # Use Redis adapter to run Action Cable in production
 # gem "redis", "~> 4.0"
 
